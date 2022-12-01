@@ -11,7 +11,7 @@ impl Task for TDay1 {
 }
 
 impl TDay1 { 
-    pub fn most_calories(data: &String, n: usize) -> u32 {
+    fn most_calories(data: &String, n: usize) -> u32 {
         let mut calories = data.split("\n\n")
             .map(|x| {
                 x.lines()
