@@ -11,23 +11,21 @@ impl Task for TDay1 {
 }
 
 impl TDay1 { 
-    fn most_calories(data: &String, n: usize) -> u32 {
+    fn most_calories(data: &String, n: usize) -> usize {
         let mut calories = data.split("\n\n")
             .map(|x| {
-                x.lines()
-                    .map(|x| x
-                         .to_string()
-                         .parse::<u32>()
-                         .unwrap()
-                    )
-                    .collect::<Vec<u32>>()
-                    .into_iter()
-                    .sum()
+                return x
+                    .lines()
+                    .flat_map(str::parse::<usize>)
+                    .sum::<usize>();
             })
-            .collect::<Vec<u32>>();
+            .collect::<Vec<usize>>();
+
         calories.sort();
-        calories.into_iter()
-            .rev()
+        calories.reverse();
+
+        calories
+            .iter()
             .take(n)
             .sum()
     }
