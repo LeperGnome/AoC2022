@@ -64,5 +64,24 @@ impl TDay2 {
         }
         score
     }
+
+    fn _calculate_score_exp(data: &String) -> u32 {
+        use std::collections::HashMap;
+
+        let rps = HashMap::from([("A", 0), ("B", 1), ("C", 2)]);
+        let scores = vec![1,2,3];
+
+        let mut score: u32 = 0;
+        for l in data.lines() {
+            let (el, you) = l.split_once(' ').unwrap();
+            match you {
+                "X" => { score += 0; score += scores[(rps[el]-1)%3] },
+                "Y" => { score += 3; score += scores[rps[el]]; },
+                "Z" => { score += 6; score += scores[(rps[el]+1)%3]; },
+                _ => ()
+            }
+        }
+        score
+    }
 }
 
