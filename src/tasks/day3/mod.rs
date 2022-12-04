@@ -1,18 +1,17 @@
 use crate::tasks::Task;
 use std::collections::{HashSet, HashMap};
-use std::fs::read_to_string;
 
-pub struct TDay3 {}
+pub struct TDay {}
 
-impl Task for TDay3 { 
+impl Task for TDay { 
     fn compute(&self) -> String {
-        let data = read_to_string("./src/tasks/day3/data.txt").unwrap(); 
-        TDay3::calculate_priority(&data).to_string()
+        let data = include_str!("data.txt"); 
+        TDay::calculate_priority(&data).to_string()
     }
 }
 
-impl TDay3 { 
-    fn calculate_priority(data: &String) -> u32 {
+impl TDay { 
+    fn calculate_priority(data: &str) -> u32 {
         let mut m: HashMap<char, u32> = ('a'..='z').zip(1..=26).collect();
         m.extend(('A'..='Z').zip(27..=52));
 

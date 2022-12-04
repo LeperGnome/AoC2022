@@ -1,17 +1,16 @@
 use crate::tasks::Task;
-use std::fs::read_to_string;
 
-pub struct TDay2 {}
+pub struct TDay {}
 
-impl Task for TDay2 { 
+impl Task for TDay { 
     fn compute(&self) -> String {
-        let data = read_to_string("./src/tasks/day2/data.txt").unwrap(); 
-        TDay2::calculate_score(&data).to_string()
+        let data = include_str!("data.txt"); 
+        TDay::calculate_score(&data).to_string()
     }
 }
 
-impl TDay2 { 
-    fn _calculate_score_1(data: &String) -> u32 {
+impl TDay { 
+    fn _calculate_score_1(data: &str) -> u32 {
         let win_pairs = vec![("A", "Y"), ("B", "Z"), ("C", "X")];
         let draw_pairs = vec![("A", "X"), ("B", "Y"), ("C", "Z")];
         let mut score: u32 = 0;
@@ -33,7 +32,7 @@ impl TDay2 {
         }
         score
     }
-    fn calculate_score(data: &String) -> u32 {
+    fn calculate_score(data: &str) -> u32 {
         use std::collections::HashMap;
 
         let win_scores = HashMap::from([

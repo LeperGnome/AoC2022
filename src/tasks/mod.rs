@@ -1,6 +1,7 @@
 mod day1;
 mod day2;
 mod day3;
+mod day4;
 
 trait Task {
     fn compute(&self) -> String;
@@ -9,9 +10,10 @@ trait Task {
 impl dyn Task {
     fn get_by_day(day_n: usize) -> Option<Box<dyn Task>>{
         match day_n {
-            1 => Some(Box::new(day1::TDay1{})),
-            2 => Some(Box::new(day2::TDay2{})),
-            3 => Some(Box::new(day3::TDay3{})),
+            1 => Some(Box::new(day1::TDay{})),
+            2 => Some(Box::new(day2::TDay{})),
+            3 => Some(Box::new(day3::TDay{})),
+            4 => Some(Box::new(day4::TDay{})),
             _ => None,
         }
     }

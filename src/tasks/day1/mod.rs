@@ -1,17 +1,16 @@
 use crate::tasks::Task;
-use std::fs::read_to_string;
 
-pub struct TDay1 {}
+pub struct TDay {}
 
-impl Task for TDay1 { 
+impl Task for TDay { 
     fn compute(&self) -> String {
-        let data = read_to_string("./src/tasks/day1/data.txt").unwrap(); 
-        TDay1::most_calories(&data, 3).to_string()
+        let data = include_str!("data.txt"); 
+        TDay::most_calories(&data, 3).to_string()
     }
 }
 
-impl TDay1 { 
-    fn most_calories(data: &String, n: usize) -> usize {
+impl TDay { 
+    fn most_calories(data: &str, n: usize) -> usize {
         let mut calories = data.split("\n\n")
             .map(|x| {
                 return x
