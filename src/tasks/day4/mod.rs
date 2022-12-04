@@ -19,23 +19,12 @@ impl TDay {
                 .expect("Not for 2 elves");
             let range1 = p1.parse::<Range>().unwrap();
             let range2 = p2.parse::<Range>().unwrap();
-
-            // one fully contains the other
-            if (range1.start <= range2.start && range1.end >= range2.end) ||
-               (range2.start <= range1.start && range2.end >= range1.end) {
-                   cnt += 1;
-            }
-            // overlaping
-            else if (range1.end >= range2.start && range1.start <= range2.end) ||
-                    (range2.end >= range1.start && range2.start <= range1.end) {
-                println!("{:?}, {:?}", range1, range2);
-            }
+            if range1.overlaps(&range2) { cnt += 1; }
         }
         return cnt;
     }
 }
 
-// just for convenience
 #[derive(Debug)]
 struct Range { 
     start: u32,
@@ -51,5 +40,12 @@ impl FromStr for Range {
             start: l.parse().unwrap(),
             end: r.parse().unwrap(),
         })
+    }
+}
+
+impl Range {
+    fn overlaps(&self, r: &Range) -> bool {
+        (self.end >= r.start && self.start <= r.end) ||
+        (r.end >= self.start && r.start <= self.end)
     }
 }
