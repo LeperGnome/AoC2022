@@ -42,7 +42,6 @@ impl TDay {
                 .map(|x| str::parse::<usize>(x).unwrap())
                 .collect::<Vec<usize>>();
             mv(params[0],params[1], params[2], &mut stacks);
-
         }
         get_top(&stacks)
     }

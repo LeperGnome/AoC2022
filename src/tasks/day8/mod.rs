@@ -10,7 +10,7 @@ impl Task for TDay {
 }
 
 impl TDay { 
-    fn some(data: &str) -> Option<usize> {
+    fn some(_data: &str) -> Option<usize> {
         None
     }
 }
