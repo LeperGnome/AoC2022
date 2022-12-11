@@ -1,3 +1,5 @@
+#![feature(get_many_mut)]
+
 use std::env;
 use crate::tasks::execute;
 
