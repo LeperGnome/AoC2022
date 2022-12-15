@@ -1,5 +1,6 @@
 use crate::tasks::Task;
 
+use std::mem::size_of_val;
 use std::str::FromStr;
 use std::hash::{Hash, Hasher};
 use std::collections::HashSet;
@@ -22,7 +23,7 @@ impl FromStr for Beacon{
 struct Sensor {
     x: i64,
     y: i64,
-    closest_beacon: Option<Beacon>,
+    view_radius: i64,
 }
 
 impl Hash for Sensor {
@@ -33,13 +34,8 @@ impl Hash for Sensor {
 }
 
 impl Sensor {
-    fn view_radius(&self) -> i64 {
-        (self.x - self.closest_beacon.unwrap().x).abs() +
-        (self.y - self.closest_beacon.unwrap().y).abs()
-    }
-
     fn project_view_on_line(&self, bitline: &mut Vec<bool>, dist_to_line: i64) {
-        let view_left = self.view_radius() - dist_to_line;
+        let view_left = self.view_radius - dist_to_line;
         let linex = self.x;
         if view_left > 0 {
             bitline[linex as usize] = true;
@@ -52,18 +48,16 @@ impl Sensor {
         }
     }
 
-    fn project_view(&self, bitmap: &mut Vec<Vec<bool>>) {
-        let liney = self.y;
-        for dy in 1..=self.view_radius() {
-            dbg!(self.y + dy);
-            if liney + dy < bitmap.len() as i64 {
-                let line_up = &mut bitmap[(liney + dy) as usize];
-                self.project_view_on_line(line_up, liney + dy);
-            }
-            dbg!(self.y - dy);
-            if liney - dy >= 0 {
-                let line_down = &mut bitmap[(liney - dy) as usize ];
-                self.project_view_on_line(line_down, dy);
+    fn project_view(&self, bitmap: &mut Vec<Vec<bool>>, offset: i64) {
+        let liney = self.y - offset;
+
+        for dy in 0..=self.view_radius {
+            // println!("viewing distance {}", dy);
+            for new_line in [liney + dy, liney - dy] {
+                if new_line < bitmap.len() as i64 && new_line >= 0{
+                    let line_up = &mut bitmap[new_line as usize];
+                    self.project_view_on_line(line_up, dy);
+                }
             }
         }
     }
@@ -82,70 +76,58 @@ impl Task for TDay {
         let data = include_str!("data.txt"); 
 
         let mut sensors = HashSet::new();
-        let mut beacons = HashSet::new();
 
         for line in data.lines() {
             let (sp, bp) = line.split_once(':').unwrap();
             let beacon = bp.parse::<Beacon>().unwrap();
             let (sensor_x, sensor_y) = get_xy(sp);
-            beacons.insert(beacon);
             let sensor = Sensor {
                 x: sensor_x,
                 y: sensor_y,
-                closest_beacon: Some(beacon),
+                view_radius: (sensor_x - beacon.x).abs() +
+                             (sensor_y - beacon.y).abs(),
             };
             sensors.insert(sensor);
         }
-        TDay::beacon_detection(sensors, beacons)
+        TDay::beacon_detection(sensors)
             .expect("something should be here")
             .to_string()
     }
 }
 
 impl TDay { 
-    fn beacon_detection(sensors: HashSet<Sensor>, beacons: HashSet<Beacon>) -> Option<usize> {
-        let minx_s = sensors.iter().min_by_key(|s| s.x).unwrap().x;
-        let miny_s = sensors.iter().min_by_key(|s| s.y).unwrap().y;
+    fn beacon_detection(sensors: HashSet<Sensor>) -> Option<usize> {
+        let bound: usize = 4000000;
+        let chunks = 10_000;
+        let chunksize = bound / chunks;
 
-        let maxx_s = sensors.iter().max_by_key(|s| s.x).unwrap().x;
-        let maxy_s = sensors.iter().max_by_key(|s| s.y).unwrap().y;
+        for chidx in 0..chunks {
+            let offset = chidx * chunksize;
+            let mut bitmap = vec![];
 
-        let minx_b = beacons.iter().min_by_key(|s| s.x).unwrap().x;
-        let miny_b = beacons.iter().min_by_key(|s| s.y).unwrap().y;
+            for _ in 0..=chunksize {
+                let bitline = vec![false; bound+1];
+                bitmap.push(bitline);
+            }
 
-        let maxx_b = beacons.iter().max_by_key(|s| s.x).unwrap().x;
-        let maxy_b = beacons.iter().max_by_key(|s| s.y).unwrap().y;
+            for (si, s) in sensors.iter().enumerate() {
+                println!("viewing sensor #{}/{} with distance {}", si, sensors.len(), s.view_radius);
 
-        let minx = minx_s.min(minx_b);
-        let maxx = maxx_s.max(maxx_b);
+                s.project_view(&mut bitmap, offset as i64);
+            }
 
-        let miny = miny_s.min(miny_b);
-        let maxy = maxy_s.max(maxy_b);
-
-        let scale_factor = 1;
-        
-        let mut bitmap = vec![];
-
-        for _ in 0..(maxy*scale_factor) {
-            let bitline = vec![false; (maxx*scale_factor - minx*scale_factor) as usize];
-            bitmap.push(bitline);
-        }
-
-        for s in sensors.iter() {
-            println!("{:?}", s);
-            s.project_view(&mut bitmap);
-        }
-
-        for l in bitmap.iter() {
-            for el in l.iter() {
-                if *el {
-                    print!("#");
-                } else {
-                    print!(".");
+            for (y, l) in bitmap.iter().enumerate() {
+                for (x, el) in l.iter().enumerate() {
+                    if !*el { 
+                        println!("{}", size_of_val(&*bitmap));
+                        return Some((x*4000000)+y+offset);
+                    }
                 }
             }
-            println!();
+            println!("done with chunk #{}", chidx);
         }
+
+        
         Some(1)
     }
 }
