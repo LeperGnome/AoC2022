@@ -1,8 +1,7 @@
 use crate::tasks::Task;
 
-use std::mem::size_of_val;
 use std::str::FromStr;
-use std::hash::{Hash, Hasher};
+use std::hash::Hash;
 use std::collections::HashSet;
 
 #[derive(PartialEq, Eq, Hash, Debug, Clone, Copy)]
@@ -19,47 +18,27 @@ impl FromStr for Beacon{
     }
 }
 
-#[derive(PartialEq, Eq, Debug)]
+#[derive(PartialEq, Eq, Hash, Debug)]
 struct Sensor {
     x: i64,
     y: i64,
     view_radius: i64,
 }
 
-impl Hash for Sensor {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        self.x.hash(state);
-        self.y.hash(state);
-    }
-}
-
 impl Sensor {
-    fn project_view_on_line(&self, bitline: &mut Vec<bool>, dist_to_line: i64) {
-        let view_left = self.view_radius - dist_to_line;
-        let linex = self.x;
-        if view_left > 0 {
-            bitline[linex as usize] = true;
-            for i in 1..=view_left {
-                if linex + i < bitline.len() as i64 {bitline[(linex+i) as usize] = true;}
-                if linex - i >= 0 {bitline[(linex-i) as usize] = true;}
-            }
-        } else if view_left == 0 {
-            bitline[linex as usize] = true;
+    fn get_perimeter_points(&self) -> HashSet<(i64, i64)> {
+        let mut points = HashSet::new();
+        for i in 0..=self.view_radius+1 {
+            points.insert(( i + self.x,   self.view_radius + 1 - i + self.y));
+            points.insert((-i + self.x,   self.view_radius + 1 - i + self.y));
+            points.insert((-i + self.x, -(self.view_radius + 1 - i) + self.y));
+            points.insert(( i + self.x, -(self.view_radius + 1 - i) + self.y));
         }
+        return points;
     }
 
-    fn project_view(&self, bitmap: &mut Vec<Vec<bool>>, offset: i64) {
-        let liney = self.y - offset;
-
-        for dy in 0..=self.view_radius {
-            // println!("viewing distance {}", dy);
-            for new_line in [liney + dy, liney - dy] {
-                if new_line < bitmap.len() as i64 && new_line >= 0{
-                    let line_up = &mut bitmap[new_line as usize];
-                    self.project_view_on_line(line_up, dy);
-                }
-            }
-        }
+    fn contains(&self, point: (i64, i64)) -> bool {
+        ((self.x - point.0).abs() + (self.y - point.1).abs()) <= self.view_radius
     }
 }
 
@@ -96,38 +75,23 @@ impl Task for TDay {
 }
 
 impl TDay { 
-    fn beacon_detection(sensors: HashSet<Sensor>) -> Option<usize> {
-        let bound: usize = 4000000;
-        let chunks = 10_000;
-        let chunksize = bound / chunks;
-
-        for chidx in 0..chunks {
-            let offset = chidx * chunksize;
-            let mut bitmap = vec![];
-
-            for _ in 0..=chunksize {
-                let bitline = vec![false; bound+1];
-                bitmap.push(bitline);
-            }
-
-            for (si, s) in sensors.iter().enumerate() {
-                println!("viewing sensor #{}/{} with distance {}", si, sensors.len(), s.view_radius);
-
-                s.project_view(&mut bitmap, offset as i64);
-            }
-
-            for (y, l) in bitmap.iter().enumerate() {
-                for (x, el) in l.iter().enumerate() {
-                    if !*el { 
-                        println!("{}", size_of_val(&*bitmap));
-                        return Some((x*4000000)+y+offset);
+    fn beacon_detection(sensors: HashSet<Sensor>) -> Option<i64> {
+        for s1 in sensors.iter() {
+            dbg!(&s1);
+            let pp = s1.get_perimeter_points();
+            'point: for p in pp.iter() {
+                if p.0 < 0 || p.1 < 0 || p.1 > 4000000 || p.0 > 4000000 {
+                    continue 'point;
+                }
+                for s2 in sensors.iter() {
+                    if s2.contains(*p) {
+                        continue 'point;
                     }
                 }
+                println!("Found point: {:?}", p);
+                return Some(p.0*4000000 + p.1);
             }
-            println!("done with chunk #{}", chidx);
         }
-
-        
-        Some(1)
+        None
     }
 }
