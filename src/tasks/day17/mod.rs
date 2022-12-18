@@ -1,14 +1,14 @@
 use crate::tasks::Task;
 
-use std::iter::Cycle;
+use std::iter::{Cycle, Peekable};
 use std::str::FromStr;
-use std::collections::VecDeque;
+use std::collections::{VecDeque, HashMap};
 
-type PatternCycle = Cycle<std::vec::IntoIter<JetDir>>;
+type PatternCycle = Peekable<Cycle<std::vec::IntoIter<JetDir>>>;
 type Rock = Vec<VecDeque<bool>>;
 type Map  = Vec<VecDeque<bool>>;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Hash, Eq, PartialEq)]
 enum JetDir {
     Left,
     Right,
@@ -57,7 +57,6 @@ fn merged(rock: &Rock, map: &Map) -> Rock {
 fn move_rock(rock: &mut Rock, dir: &JetDir) {
     match dir {
         JetDir::Left => {
-            // print!("<");
             let can_move_left = rock
                 .iter()
                 .fold(false, |acc, x| acc || x[0]) == false;
@@ -68,7 +67,6 @@ fn move_rock(rock: &mut Rock, dir: &JetDir) {
             }
         }
         JetDir::Right => {
-            // print!(">");
             let can_move_left = rock
                 .iter()
                 .fold(false, |acc, x| acc || *x.iter().last().unwrap()) == false;
@@ -84,7 +82,7 @@ fn move_rock(rock: &mut Rock, dir: &JetDir) {
 struct Chamber {
     map: Vec<VecDeque<bool>>,
     jet_pattern: PatternCycle,
-    drained: usize,
+    snapsots: HashMap<SnapshotKey, Vec<SnapshotValue>>,
 }
 
 impl Chamber {
@@ -92,18 +90,16 @@ impl Chamber {
         Chamber {
             map: vec![VecDeque::from([true; 7])],
             jet_pattern,
-            drained: 0,
+            snapsots: HashMap::new(),
         }
     }
 
-    fn add_rock(&mut self, mut rock: Rock) {
+    fn add_rock(&mut self, mut rock: Rock, rock_n: usize) {
         let original_map_len = self.map.len();
 
-        // print_rock(&rock);
         // moves rock left/right, so it's in position close to other rocks/floor
         for _ in 0..4 { 
             move_rock(&mut rock, &self.jet_pattern.next().unwrap());
-            //print_rock(&rock);
         }
 
         // adds empty space to chamber
@@ -131,20 +127,14 @@ impl Chamber {
             // check if can move left/right after moving down
             let mut rock_tmp = rock.clone();
             let next_dir = self.jet_pattern.next().unwrap();
-            // println!("checking move {:?}", next_dir);
             move_rock(&mut rock_tmp, &next_dir);
-            // print_rock(&rock);
             if could_be_merged(
                 &rock_tmp,
                 &map_window
             ) {
-                // println!("could move, so moved {:?}", next_dir);
                 // moving if can
                 move_rock(&mut rock, &next_dir);
-            } else {
-                // println!("could not move {:?}", next_dir);
             }
-            // print_rock(&rock);
         } 
 
         // replace map part with rock
@@ -155,7 +145,6 @@ impl Chamber {
             integrated_rock,
         );
 
-
         // remove extra empty lines from map
         for _ in 0..shift {
             if self.map.len() == original_map_len {
@@ -164,25 +153,33 @@ impl Chamber {
             self.map.pop();
         }
 
-        // draining redundant parts of map
-        let mut strip_to: Option<usize> = None;
-        for (ridx, line) in self.map.iter().rev().enumerate() {
-            if line.iter().all(|x| *x) && ridx != self.map.len()-1 {
-                let end_idx = self.map.len() - ridx - 1;
-                self.drained += end_idx;
-                strip_to = Some(end_idx);
-                break;
-            }
-        }
+        // adding map snapsots
+        let snapsot_key = SnapshotKey {
+            current_rock: rock_n % 5,
+            n_last_layers: self.map.iter().rev().take(200).cloned().collect(),
+            next_dir: self.jet_pattern.peek().unwrap().clone(),
+        };
 
-        if let Some(idx) = strip_to {
-            self.map.drain(0..idx);
-        }
+        let snapshot_value = SnapshotValue {
+            rock_n,
+            hight: self.map.len() - 1,
+        };
 
-        // self.print_map();
+        self.snapsots.entry(snapsot_key).or_insert(vec![]).push(snapshot_value);
+    }
+
+    fn get_best_snapshot(&self) -> Vec<SnapshotValue> {
+        let best_snapsot = self.snapsots
+            .iter()
+            .filter(|(_, vs)| vs.len() > 1)
+            .max_by_key(|(_, vs)| vs.len())
+            .unwrap()
+            .1;
+        return best_snapsot.clone();
 
     }
 
+    #[allow(dead_code)]
     fn print_map(&self) {
         println!();
         for row in self.map.iter().rev() { 
@@ -198,18 +195,17 @@ impl Chamber {
     }
 }
 
-fn print_rock(rock: &Rock) {
-    println!();
-    for row in rock.iter().rev() { 
-        for col in row {
-            match col {
-                true => print!("#"),
-                false => print!("."),
-            }
-        }
-        println!();
-    }
-    println!();
+#[derive(Debug, Hash, Eq, PartialEq)]
+struct SnapshotKey {
+    current_rock: usize,  // mod of rock_n
+    n_last_layers: Map,
+    next_dir: JetDir,
+}
+
+#[derive(Debug, Clone, Copy)]
+struct SnapshotValue {
+    rock_n: usize,
+    hight: usize,
 }
 
 pub struct TDay {}
@@ -225,15 +221,28 @@ impl Task for TDay {
             .map(|x| x.to_string().parse::<JetDir>().unwrap())
             .collect::<Vec<JetDir>>();
 
-        TDay::rock_tetris(directions)
-            .expect("something should be here")
-            .to_string()
+        let first_chamber = TDay::rock_tetris(directions.clone(), 10000);
+
+        let best_snapsot = first_chamber.get_best_snapshot();
+
+        let rock_diff = best_snapsot[1].rock_n - best_snapsot[0].rock_n;
+        let hight_diff = best_snapsot[1].hight - best_snapsot[0].hight;
+
+        let rest_rocks = ((1000000000000 -  best_snapsot[0].rock_n) % rock_diff) + best_snapsot[0].rock_n;
+
+        let second_chamber = TDay::rock_tetris(directions.clone(), rest_rocks);
+
+        return (
+            (
+                ((1000000000000 -  best_snapsot[0].rock_n) / rock_diff) * hight_diff
+            ) + second_chamber.map.len() - 1
+        ).to_string();
     }
 }
 
 impl TDay {
-    fn rock_tetris(directions: Vec<JetDir>) -> Option<usize> {
-        let mut chamber = Chamber::new(directions.into_iter().cycle());
+    fn rock_tetris(directions: Vec<JetDir>, n_rocks: usize) -> Chamber {
+        let mut chamber = Chamber::new(directions.into_iter().cycle().peekable());
 
         let rocks: Vec<Rock> = vec![
             Vec::from([VecDeque::from([false, false, true, true, true, true, false])]),
@@ -261,17 +270,11 @@ impl TDay {
         
         let mut rocks_cycle = rocks.iter().cycle();
 
-        let steps: usize = 1_000_000_000_000;
-
-        for n in 0..steps {
-            if n % 100_000 == 0 { println!("Done with {} / {}", n, steps);}
-
+        for n in 0..n_rocks{
             let rock = rocks_cycle.next().unwrap();
-            chamber.add_rock(rock.clone())
+            chamber.add_rock(rock.clone(), n);
         }
 
-        // chamber.print_map();
-
-        return Some(chamber.map.len() + chamber.drained - 1);  // floor included in len(), so -1
+        return chamber;
     }
 }
