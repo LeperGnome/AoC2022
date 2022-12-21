@@ -53,6 +53,7 @@ fn need_to_build(
     robots: &HashMap<ResourceType, usize>,
     robots_costs: &RobotsCosts
 ) -> bool {
+    // Don't build more robots, then needed
     match robot_type {
         ResourceType::Geode => true,
         ResourceType::Obsidian => {
@@ -171,7 +172,7 @@ impl TDay {
         
         let mut results = vec![];
 
-        for (i, robots_costs) in blueprits.iter().enumerate() {
+        for (i, robots_costs) in blueprits.iter().take(3).enumerate() {
             results.push(get_max_geodes_2(
                 HashMap::from([
                     (ResourceType::Ore, 1),
