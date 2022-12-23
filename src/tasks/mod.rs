@@ -18,6 +18,7 @@ mod day18;
 mod day19;
 mod day20;
 mod day21;
+mod day22;
 
 trait Task {
     fn compute(&self) -> String;
@@ -46,6 +47,7 @@ impl dyn Task {
             19 => Some(Box::new(day19::TDay{})),
             20 => Some(Box::new(day20::TDay{})),
             21 => Some(Box::new(day21::TDay{})),
+            22 => Some(Box::new(day22::TDay{})),
             _ => None,
         }
     }
