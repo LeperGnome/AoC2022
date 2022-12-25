@@ -1,6 +1,38 @@
 use crate::tasks::Task;
 
+use std::collections::HashMap;
+
 type Map = Vec<Vec<Option<bool>>>;
+type Sector = Vec<Vec<Point>>;
+
+#[derive(Eq, PartialEq, Hash, Debug, Clone, Copy)]
+struct Point {
+    blocked: bool,
+    global_x: usize,
+    global_y: usize,
+}
+
+
+// 
+// impl Sector {
+//     fn contains(&self, x: &usize, y: &usize) -> bool {
+//         return 
+//            x >= &self.xfrom 
+//         && x <= &self.xto
+//         && y >= &self.yfrom
+//         && y <= &self.yto;
+//     }
+// }
+// 
+// fn get_current_sector_number(x: &usize, y: &usize, sectors: &HashMap<usize, Sector>) -> usize {
+//     for (n, sec) in sectors.iter() {
+//         if sec.contains(x, y) {
+//             return *n;
+//         }
+//     }
+//     return 0;
+// }
+
 
 #[derive(Debug)]
 enum Instruction {
@@ -114,14 +146,35 @@ impl Task for TDay {
 
         let (map_raw, instr) = data.split_once("\n\n").unwrap();
 
+        let mut sectors: HashMap<usize, Sector> = HashMap::new();
+        let side = 50;
+
+        for (y, l) in  map_raw.lines().enumerate() {
+            for (x, c) in l.chars().enumerate() {
+                let sector_n = (x / side) + ((y / side) * 4);
+
+                let p = match c {
+                    '.' => Point{ global_x: x, global_y: y, blocked: false},
+                    '#' => Point{ global_x: x, global_y: y, blocked: true},
+                    _ => continue,
+                };
+
+                (*sectors.entry(sector_n).or_insert(vec![vec![]; 50]))[y % 50].push(p);
+            }
+        }
+
+        dbg!(&sectors);
+
         // requires trailing whitespaces!
         let map = map_raw.lines()
-            .map(|x| {
-                x.chars().map(|c| match c {
-                    ' ' => None,
-                    '.' => Some(false),
-                    '#' => Some(true),
-                    _ => unreachable!(),
+            .map(|l| {
+                l.chars().map(|c| {
+                    match c {
+                        ' ' => None,
+                        '.' => Some(false),
+                        '#' => Some(true),
+                        _ => unreachable!(),
+                    }
                 }).collect::<Vec<Option<bool>>>()
             }).collect::<Map>();
 
@@ -185,7 +238,6 @@ impl TDay {
                 _ => { cur_dir = rotate(&cur_dir, &instruction) }
             }
         }
-
         Some(1000 * (cur_y+1) + 4 * (cur_x+1) + cur_dir.get_score())
     }
 }
