@@ -2,7 +2,6 @@ use crate::tasks::Task;
 
 use std::collections::HashMap;
 
-type Map = Vec<Vec<Option<bool>>>;
 type Sector = Vec<Vec<Point>>;
 
 #[derive(Eq, PartialEq, Hash, Debug, Clone, Copy)]
@@ -12,28 +11,6 @@ struct Point {
     global_y: usize,
 }
 
-
-// 
-// impl Sector {
-//     fn contains(&self, x: &usize, y: &usize) -> bool {
-//         return 
-//            x >= &self.xfrom 
-//         && x <= &self.xto
-//         && y >= &self.yfrom
-//         && y <= &self.yto;
-//     }
-// }
-// 
-// fn get_current_sector_number(x: &usize, y: &usize, sectors: &HashMap<usize, Sector>) -> usize {
-//     for (n, sec) in sectors.iter() {
-//         if sec.contains(x, y) {
-//             return *n;
-//         }
-//     }
-//     return 0;
-// }
-
-
 #[derive(Debug)]
 enum Instruction {
     Walk(usize),
@@ -41,7 +18,7 @@ enum Instruction {
     RotateRight,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 enum Direction {
     Up,
     Down,
@@ -82,61 +59,214 @@ fn rotate(cur_dir: &Direction, instr: &Instruction) -> Direction {
     }
 }
 
-fn get_bound(cur_x: &usize, cur_y: &usize, dir: &Direction, map: &Map) -> (usize, usize){
-    match dir {
-        Direction::Right | Direction::Left => {
-            let lb = map[*cur_y]
-                .iter()
-                .position(|x| if let Some(_) = x { true } else { false })
-                .unwrap();
-            let rb = map[*cur_y]
-                .iter()
-                .rposition(|x| if let Some(_) = x { true } else { false })
-                .unwrap();
-            return (lb, rb);
-        }
-        Direction::Up | Direction::Down => {
-            let lb = map
-                .iter()
-                .position(|x| if let Some(_) = x[*cur_x] { true } else { false })
-                .unwrap();
-            let rb = map
-                .iter()
-                .rposition(|x| if let Some(_) = x[*cur_x] { true } else { false })
-                .unwrap();
-            return (lb, rb);
-        }
-    }
-}
-
-fn move_me(cur_x: usize, cur_y: usize, dir: &Direction, map: &Map) -> Option<(usize, usize)> {
-    let mut new_x = cur_x;
-    let mut new_y = cur_y;
-
-    let (lb, ub) = get_bound(&cur_x, &cur_y, &dir, &map);
+fn move_me(
+    cur_x: &mut usize,
+    cur_y: &mut usize,
+    cur_sector: &mut usize,
+    dir: &mut Direction,
+    sectors: &HashMap<usize, Sector>
+) -> bool {
+    let mut new_x = cur_x.clone();
+    let mut new_y = cur_y.clone();
+    let mut new_dir = dir.clone();
+    let mut new_sector = cur_sector.clone();
 
     match dir {
-        Direction::Right => {
-            if cur_x == ub { new_x = lb; } else { new_x = cur_x + 1; }
-        },
-        Direction::Left => {
-            if cur_x == lb { new_x = ub; } else { new_x = cur_x - 1; }
+        Direction::Up => {
+            if *cur_y != 0 { 
+                new_y -= 1;
+            } else {
+                match cur_sector {
+                    1 => {
+                        new_sector = 9;
+                        new_x = 0;
+                        new_y = *cur_x;
+                        new_dir = Direction::Right;
+                    },
+                    2 => {
+                        new_sector = 9;
+                        new_x = *cur_x;
+                        new_y = 49;
+                        new_dir = Direction::Up;
+                    },
+                    4 => {
+                        new_sector = 1;
+                        new_x = *cur_x;
+                        new_y = 49;
+                        new_dir = Direction::Up;
+                    },
+                    6 => {
+                        new_sector = 4;
+                        new_x = 0;
+                        new_y = *cur_x;
+                        new_dir = Direction::Right;
+                    },
+                    7 => {
+                        new_sector = 4;
+                        new_x = *cur_x;
+                        new_y = 49;
+                        new_dir = Direction::Up;
+                    },
+                    9 => {
+                        new_sector = 6;
+                        new_x = *cur_x;
+                        new_y = 49;
+                        new_dir = Direction::Up;
+                    },
+                    _ => unreachable!(),
+                }
+            }
         },
         Direction::Down => {
-            if cur_y == ub { new_y = lb; } else { new_y = cur_y + 1; }
+            if *cur_y != 49 { 
+                new_y += 1;
+            } else {
+                match cur_sector {
+                    1 => {
+                        new_sector = 4;
+                        new_x = *cur_x;
+                        new_y = 0;
+                        new_dir = Direction::Down;
+                    },
+                    2 => {
+                        new_sector = 4;
+                        new_x = 49;
+                        new_y = *cur_x;
+                        new_dir = Direction::Left;
+                    },
+                    4 => {
+                        new_sector = 7;
+                        new_x = *cur_x;
+                        new_y = 0;
+                        new_dir = Direction::Down;
+                    },
+                    6 => {
+                        new_sector = 9;
+                        new_x = *cur_x;
+                        new_y = 0;
+                        new_dir = Direction::Down;
+                    },
+                    7 => {
+                        new_sector = 9;
+                        new_x = 49;
+                        new_y = *cur_x;
+                        new_dir = Direction::Left;
+                    },
+                    9 => {
+                        new_sector = 2;
+                        new_x = *cur_x;
+                        new_y = 0;
+                        new_dir = Direction::Down;
+                    },
+                    _ => unreachable!(),
+                }
+            }
         },
-        Direction::Up => {
-            if cur_y == lb { new_y = ub; } else { new_y = cur_y - 1; }
+        Direction::Right => {
+            if *cur_x != 49 { 
+                new_x += 1;
+            } else {
+                match cur_sector {
+                    1 => {
+                        new_sector = 2;
+                        new_x = 0;
+                        new_y = *cur_y;
+                        new_dir = Direction::Right;
+                    },
+                    2 => {
+                        new_sector = 7;
+                        new_x = 49;
+                        new_y = 49 - *cur_y;
+                        new_dir = Direction::Left;
+                    },
+                    4 => {
+                        new_sector = 2;
+                        new_x = *cur_y;
+                        new_y = 49;
+                        new_dir = Direction::Up;
+                    },
+                    6 => {
+                        new_sector = 7;
+                        new_x = 0;
+                        new_y = *cur_y;
+                        new_dir = Direction::Right;
+                    },
+                    7 => {
+                        new_sector = 2;
+                        new_x = 49;
+                        new_y = 49 - *cur_y;
+                        new_dir = Direction::Left;
+                    },
+                    9 => {
+                        new_sector = 7;
+                        new_x = *cur_y;
+                        new_y = 49;
+                        new_dir = Direction::Up;
+                    },
+                    _ => unreachable!(),
+                }
+            }
+        },
+        Direction::Left => {
+            if *cur_x != 0 { 
+                new_x -= 1;
+            } else {
+                match cur_sector {
+                    1 => {
+                        new_sector = 6;
+                        new_x = 0;
+                        new_y = 49 - *cur_y;
+                        new_dir = Direction::Right;
+                    },
+                    2 => {
+                        new_sector = 1;
+                        new_x = 49;
+                        new_y = *cur_y;
+                        new_dir = Direction::Left;
+                    },
+                    4 => {
+                        new_sector = 6;
+                        new_x = *cur_y;
+                        new_y = 0;
+                        new_dir = Direction::Down;
+                    },
+                    6 => {
+                        new_sector = 1;
+                        new_x = 0;
+                        new_y = 49 - *cur_y;
+                        new_dir = Direction::Right;
+                    },
+                    7 => {
+                        new_sector = 6;
+                        new_x = 49;
+                        new_y = *cur_y;
+                        new_dir = Direction::Left;
+                    },
+                    9 => {
+                        new_sector = 1;
+                        new_x = *cur_y;
+                        new_y = 0;
+                        new_dir = Direction::Down;
+                    },
+                    _ => unreachable!(),
+                }
+            }
         },
     }
 
-    match map[new_y][new_x] {
-        Some(v) => {
-            if v { None } else { Some((new_x, new_y)) }
-        },
-        None => unreachable!(),
+    dbg!(&new_sector);
+    match sectors.get(&new_sector).unwrap()[new_y][new_x].blocked {
+        false => { 
+            *cur_x = new_x;
+            *cur_y = new_y;
+            *dir = new_dir;
+            *cur_sector = new_sector;
+            false
+        }
+        true => true,
     }
 }
+
 
 pub struct TDay {}
 
@@ -151,7 +281,7 @@ impl Task for TDay {
 
         for (y, l) in  map_raw.lines().enumerate() {
             for (x, c) in l.chars().enumerate() {
-                let sector_n = (x / side) + ((y / side) * 4);
+                let sector_n = (x / side) + ((y / side) * 3);
 
                 let p = match c {
                     '.' => Point{ global_x: x, global_y: y, blocked: false},
@@ -162,21 +292,6 @@ impl Task for TDay {
                 (*sectors.entry(sector_n).or_insert(vec![vec![]; 50]))[y % 50].push(p);
             }
         }
-
-        dbg!(&sectors);
-
-        // requires trailing whitespaces!
-        let map = map_raw.lines()
-            .map(|l| {
-                l.chars().map(|c| {
-                    match c {
-                        ' ' => None,
-                        '.' => Some(false),
-                        '#' => Some(true),
-                        _ => unreachable!(),
-                    }
-                }).collect::<Vec<Option<bool>>>()
-            }).collect::<Map>();
 
         let mut instructions: Vec<Instruction> = vec![];
         let mut buf = vec![];
@@ -202,42 +317,34 @@ impl Task for TDay {
             }
         }
 
-        TDay::monkey_map(map, instructions)
+        TDay::monkey_map(sectors, instructions)
             .expect("something should be here")
             .to_string()
     }
 }
 
-
-
 impl TDay { 
-    fn monkey_map(map: Map, instructions: Vec<Instruction>) -> Option<usize> {
-        let mut start_x = 0;
-
-        for (x, el) in map.first().unwrap().iter().enumerate() {
-            if let Some(_) = el {
-                start_x = x;
-                break;
-            }
-        }
-
-        let mut cur_x: usize = start_x;
+    fn monkey_map(sectors: HashMap<usize, Sector>, instructions: Vec<Instruction>) -> Option<usize> {
+        let mut cur_sector = 1_usize;
+        let mut cur_x: usize = 0;
         let mut cur_y: usize = 0;
         let mut cur_dir = Direction::Right;
+
+        dbg!(&sectors.keys());
 
         for instruction in instructions {
             match instruction {
                 Instruction::Walk(n) => { 
                     for _ in 1..=n {
-                        match move_me(cur_x, cur_y, &cur_dir, &map) {
-                            Some((new_x, new_y)) => {(cur_x, cur_y) = (new_x, new_y);},
-                            None => break,
+                        if move_me(&mut cur_x, &mut cur_y, &mut cur_sector, &mut cur_dir, &sectors){
+                            break;
                         }
                     }
                 },
                 _ => { cur_dir = rotate(&cur_dir, &instruction) }
             }
         }
-        Some(1000 * (cur_y+1) + 4 * (cur_x+1) + cur_dir.get_score())
+        let s = sectors.get(&cur_sector).unwrap();
+        Some(1000 * (s[cur_y][cur_x].global_y+1) + 4 * (s[cur_y][cur_x].global_x+1) + cur_dir.get_score())
     }
 }
